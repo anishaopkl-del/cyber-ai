@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI_CORE // NEXUS</title>
+    <style>
+        :root {
+            --neon-green: #00ff00;
+            --dark-bg: #050505;
+            --panel-bg: rgba(10, 10, 10, 0.9);
+        }
+        body {
+            background-color: var(--dark-bg);
+            color: var(--neon-green);
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+            text-shadow: 0 0 4px rgba(0, 255, 0, 0.6);
+        }
+        
+        /* CRT SCANLINE EFFECT */
+        .scanlines {
+            background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.3) 51%);
+            background-size: 100% 4px;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        /* CORE LAYOUT */
+        .view-screen {
+            display: none;
+            width: 100%; height: 100%;
+            flex-direction: column; align-items: center; justify-content: center;
+        }
+        .active { display: flex !important; }
+
+        /* PANELS & INPUTS */
+        .cyber-panel {
+            border: 1px solid var(--neon-green);
+            padding: 30px;
+            background: var(--panel-bg);
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.1);
+            width: 90%; max-width: 500px;
+        }
+        input {
+            display: block; width: 90%; margin: 15px auto;
+            background: #000; border: 1px solid var(--neon-green);
+            color: var(--neon-green); padding: 12px;
+            font-family: inherit; text-align: center; outline: none;
+        }
+        button {
+            background: #000; color: var(--neon-green);
+            border: 1px solid var(--neon-green); padding: 12px 20px;
+            cursor: pointer; font-family: inherit; font-weight: bold;
+            transition: 0.2s; width: 100%; margin-top: 10px;
+        }
+        button:hover { background: var(--neon-green); color: #000; }
+        .toggle-link {
+            font-size: 0.8em; text-align: center; margin-top: 15px; cursor: pointer;
+            text-decoration: underline; opacity: 0.8;
+        }
+
+        /* ADMIN SPECIFIC */
+        .admin-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+            width: 90%; max-width: 1000px; height: 80vh;
+        }
+        .admin-box {
+            border: 1px solid var(--neon-green); padding: 20px;
+            background: var(--panel-bg); overflow-y: auto;
+        }
+        .data-row { border-bottom: 1px dashed #00ff0055; padding: 10px 0; font-size: 0.9em; }
+
+        /* CHAT UI */
+        #chat-interface { width: 90%; max-width: 1000px; height: 90vh; display: flex; flex-direction: column;}
+        #chat-box { flex: 1; border: 1px solid var(--neon-green); padding: 20px; overflow-y: auto; background: #000; margin-bottom: 15px; }
+        .input-area { display: flex; gap: 10px; }
+        .input-area input { margin: 0; width: 80%; }
+        .input-area button { margin: 0; width: 20%; }
+    </style>
+</head>
+<body>
+    <div class="scanlines"></div>
+
+    <div id="auth-screen" class="view-screen active">
+        <div class="cyber-panel" id="login-box">
+            <h2>// SYSTEM_LOGIN</h2>
+            <input type="text" id="log-user" placeholder="USERNAME" autocomplete="off">
+            <input type="password" id="log-pass" placeholder="PASSWORD">
+            <button onclick="login()">AUTHENTICATE</button>
+            <p id="auth-error" style="color:red; text-align:center; display:none;">ACCESS DENIED</p>
+            <p class="toggle-link" onclick="toggleAuth()">> INITIATE_NEW_USER_PROTOCOL</p>
+        </div>
+
+        <div class="cyber-panel" id="register-box" style="display:none;">
+            <h2>// NEW_USER_REGISTRATION</h2>
+            <input type="text" id="reg-user" placeholder="NEW USERNAME" autocomplete="off">
+            <input type="password" id="reg-pass" placeholder="NEW PASSWORD">
+            <input type="text" id="reg-code" placeholder="REFERRAL CODE (REQUIRED)" autocomplete="off">
+            <button onclick="register()">REGISTER</button>
+            <p id="reg-error" style="color:red; text-align:center; display:none;">INVALID CODE OR USER EXISTS</p>
+            <p class="toggle-link" onclick="toggleAuth()">> RETURN_TO_LOGIN</p>
+        </div>
+    </div>
+
+    <div id="admin-screen" class="view-screen">
+        <h2>// ADMIN_OVERRIDE_TERMINAL</h2>
+        <div class="admin-grid">
+            <div class="admin-box">
+                <h3>> GENERATE_REFERRAL_CODE</h3>
+                <input type="text" id="new-ref-code" placeholder="ENTER CUSTOM CODE (e.g. ALPHA-101)">
+                <button onclick="generateReferral()">CREATE_CODE</button>
+                <button onclick="switchView('chat-screen')">ENTER_AI_CHAT</button>
+                <button onclick="logout()" style="border-color: red; color: red;">LOGOUT</button>
+                <h3 style="margin-top: 30px;">> ACTIVE_CODES</h3>
+                <div id="code-list"></div>
+            </div>
+            <div class="admin-box">
+                <h3>> REGISTERED_USERS</h3>
+                <div id="user-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="chat-screen" class="view-screen">
+        <div id="chat-interface">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>UPLINK_ESTABLISHED // <span id="current-user-display"></span></h2>
+                <div>
+                    <button id="admin-btn" onclick="switchView('admin-screen')" style="display:none; width: auto; margin-right: 10px;">ADMIN_PANEL</button>
+                    <button onclick="logout()" style="width: auto; border-color: red; color: red;">LOGOUT</button>
+                </div>
+            </div>
+            <div id="chat-box"></div>
+            <div class="input-area">
+                <input type="text" id="user-input" placeholder="Awaiting command..." autocomplete="off" onkeypress="if(event.key === 'Enter') sendMessage()">
+                <button onclick="sendMessage()">EXECUTE</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATABASE INITIALIZATION (Using Browser LocalStorage) ---
+        function initDB() {
+            if (!localStorage.getItem("cyber_users")) {
+                // Create default master admin
+                const users = { "admin": { pass: "admin123", role: "admin" } };
+                localStorage.setItem("cyber_users", JSON.stringify(users));
+                
+                // Create default referral codes
+                const codes = { "BETA-TEST": { used: false }, "HACK-2030": { used: false } };
+                localStorage.setItem("cyber_codes", JSON.stringify(codes));
+            }
+        }
+        initDB();
+
+        let currentUser = null;
+        let currentRole = null;
+
+        // --- UI NAVIGATION ---
+        function switchView(viewId) {
+            document.querySelectorAll('.view-screen').forEach(el => el.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+            
+            if (viewId === 'admin-screen') renderAdminPanel();
+            if (viewId === 'chat-screen') {
+                document.getElementById('current-user-display').innerText = `USER: ${currentUser.toUpperCase()}`;
+                document.getElementById('admin-btn').style.display = (currentRole === 'admin') ? 'inline-block' : 'none';
+            }
+        }
+
+        function toggleAuth() {
+            const loginBox = document.getElementById('login-box');
+            const regBox = document.getElementById('register-box');
+            if (loginBox.style.display === 'none') {
+                loginBox.style.display = 'block'; regBox.style.display = 'none';
+            } else {
+                loginBox.style.display = 'none'; regBox.style.display = 'block';
+            }
+        }
+
+        // --- AUTHENTICATION LOGIC ---
+        function login() {
+            const user = document.getElementById('log-user').value.trim();
+            const pass = document.getElementById('log-pass').value.trim();
+            const usersDB = JSON.parse(localStorage.getItem("cyber_users"));
+
+            if (usersDB[user] && usersDB[user].pass === pass) {
+                currentUser = user;
+                currentRole = usersDB[user].role;
+                document.getElementById('log-user').value = '';
+                document.getElementById('log-pass').value = '';
+                
+                if (currentRole === 'admin') switchView('admin-screen');
+                else switchView('chat-screen');
+            } else {
+                document.getElementById('auth-error').style.display = 'block';
+            }
+        }
+
+        function register() {
+            const user = document.getElementById('reg-user').value.trim();
+            const pass = document.getElementById('reg-pass').value.trim();
+            const code = document.getElementById('reg-code').value.trim();
+            
+            const usersDB = JSON.parse(localStorage.getItem("cyber_users"));
+            const codesDB = JSON.parse(localStorage.getItem("cyber_codes"));
+
+            // Check if username exists or code is invalid/used
+            if (!user || !pass || usersDB[user] || !codesDB[code] || codesDB[code].used) {
+                document.getElementById('reg-error').style.display = 'block';
+                return;
+            }
+
+            // Register user & mark code as used
+            usersDB[user] = { pass: pass, role: "user" };
+            codesDB[code].used = true;
+            codesDB[code].usedBy = user;
+            
+            localStorage.setItem("cyber_users", JSON.stringify(usersDB));
+            localStorage.setItem("cyber_codes", JSON.stringify(codesDB));
+
+            alert("REGISTRATION SUCCESSFUL. PROCEED TO LOGIN.");
+            toggleAuth();
+        }
+
+        function logout() {
+            currentUser = null;
+            currentRole = null;
+            document.getElementById('chat-box').innerHTML = ''; // Clear chat history
+            switchView('auth-screen');
+        }
+
+        // --- ADMIN LOGIC ---
+        function renderAdminPanel() {
+            const usersDB = JSON.parse(localStorage.getItem("cyber_users"));
+            const codesDB = JSON.parse(localStorage.getItem("cyber_codes"));
+
+            // Render Users
+            let userHTML = "";
+            for (const [username, data] of Object.entries(usersDB)) {
+                userHTML += `<div class="data-row">USER: <b>${username}</b> | ROLE: ${data.role}</div>`;
+            }
+            document.getElementById('user-list').innerHTML = userHTML;
+
+            // Render Codes
+            let codeHTML = "";
+            for (const [code, data] of Object.entries(codesDB)) {
+                const status = data.used ? `<span style="color:red">USED BY ${data.usedBy}</span>` : `<span style="color:var(--neon-green)">AVAILABLE</span>`;
+                codeHTML += `<div class="data-row">CODE: <b>${code}</b> | STATUS: ${status}</div>`;
+            }
+            document.getElementById('code-list').innerHTML = codeHTML;
+        }
+
+        function generateReferral() {
+            const newCode = document.getElementById('new-ref-code').value.trim();
+            if (!newCode) return;
+
+            const codesDB = JSON.parse(localStorage.getItem("cyber_codes"));
+            if (codesDB[newCode]) {
+                alert("CODE ALREADY EXISTS."); return;
+            }
+
+            codesDB[newCode] = { used: false };
+            localStorage.setItem("cyber_codes", JSON.stringify(codesDB));
+            document.getElementById('new-ref-code').value = '';
+            renderAdminPanel(); // Refresh UI
+        }
+
+        // --- AI CHAT LOGIC ---
+        async function sendMessage() {
+            const inputField = document.getElementById("user-input");
+            const chatBox = document.getElementById("chat-box");
+            const message = inputField.value.trim();
+            
+            if (!message) return;
+            
+            chatBox.innerHTML += `<p>> <b>${currentUser.toUpperCase()}:</b> ${message}</p>`;
+            inputField.value = "";
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            const loaderId = "loader-" + Date.now();
+            chatBox.innerHTML += `<p id="${loaderId}">> <b>SYSTEM:</b> Processing...</p>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                // Calling your Vercel backend
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                const data = await response.json();
+                document.getElementById(loaderId).remove();
+                chatBox.innerHTML += `<p>> <b>AI:</b> ${data.reply}</p><br>`;
+            } catch (error) {
+                document.getElementById(loaderId).remove();
+                chatBox.innerHTML += `<p style="color:red;">> <b>ERROR:</b> Connection failed.</p><br>`;
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    </script>
+</body>
+</html>
